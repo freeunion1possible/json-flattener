@@ -41,6 +41,19 @@ import com.google.common.io.Resources;
 public class JsonUnflattenerTest {
 
   @Test
+  public void testUnflattenWithArrayOfNestedObjectsInValByKeepArraysMode()
+      throws IOException {
+    URL url = Resources.getResource("test6.json");
+    String json = Resources.toString(url, Charsets.UTF_8);
+
+    String flattendJson = new JsonFlattener(json)
+        .withFlattenMode(FlattenMode.KEEP_ARRAYS).flatten();
+    assertEquals("{\"a\":[1,2,3],\"b\":[{\"c.d\":[1,2]}]}", flattendJson);
+    assertEquals("{\"a\":[1,2,3],\"b\":[{\"c\":{\"d\":[1,2]}}]}",
+        JsonUnflattener.unflatten(flattendJson));
+  }
+
+  @Test
   public void testUnflatten() {
     assertEquals(
         "{\"a\":{\"b\":1,\"c\":null,\"d\":[false,true,{\"sss\":777,\"vvv\":888}]},\"e\":\"f\",\"g\":2.3}",
@@ -103,6 +116,7 @@ public class JsonUnflattenerTest {
         new JsonUnflattener(json2).hashCode());
   }
 
+  @SuppressWarnings("unlikely-arg-type")
   @Test
   public void testEquals() throws IOException {
     String json1 = "[[123]]";
@@ -315,6 +329,20 @@ public class JsonUnflattenerTest {
 
             });
     assertEquals("{\"abc\":{\"de.f\":123}}", ju.unflatten());
+  }
+
+  @Test
+  public void testWithFlattenModeKeepBottomArrays() throws IOException {
+    URL url = Resources.getResource("test_keep_primitive_arrays.json");
+    String expectedJson = Resources.toString(url, Charsets.UTF_8);
+
+    URL urlKBA =
+        Resources.getResource("test_keep_primitive_arrays_flattened.json");
+    String json = Resources.toString(urlKBA, Charsets.UTF_8);
+
+    JsonUnflattener ju = new JsonUnflattener(json)
+        .withFlattenMode(FlattenMode.KEEP_PRIMITIVE_ARRAYS);
+    assertEquals(Json.parse(expectedJson).toString(), ju.unflatten());
   }
 
 }

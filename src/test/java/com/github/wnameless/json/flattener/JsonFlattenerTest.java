@@ -39,8 +39,10 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.eclipsesource.json.Json;
+import com.eclipsesource.json.JsonValue;
 import com.eclipsesource.json.PrettyPrint;
 import com.eclipsesource.json.WriterConfig;
+import com.github.wnameless.json.MinimalJsonValue;
 import com.github.wnameless.json.unflattener.JsonUnflattener;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
@@ -72,6 +74,34 @@ public class JsonFlattenerTest {
   }
 
   @Test
+  public void testFlattenWithJsonValueBase() throws IOException {
+    URL url = Resources.getResource("test2.json");
+    String json = Resources.toString(url, Charsets.UTF_8);
+
+    JsonValue jsonVal = Json.parse(json);
+    assertEquals(
+        "{\"a.b\":1,\"a.c\":null,\"a.d[0]\":false,\"a.d[1]\":true,\"e\":\"f\",\"g\":2.3}",
+        JsonFlattener.flatten(new MinimalJsonValue(jsonVal)));
+
+    assertEquals("{\"[0].a\":1,\"[1]\":2,\"[2].c[0]\":3,\"[2].c[1]\":4}",
+        JsonFlattener.flatten("[{\"a\":1},2,{\"c\":[3,4]}]"));
+  }
+
+  @Test
+  public void testFlattenAsMapWithJsonValueBase() throws IOException {
+    URL url = Resources.getResource("test2.json");
+    String json = Resources.toString(url, Charsets.UTF_8);
+
+    JsonValue jsonVal = Json.parse(json);
+    assertEquals(
+        "{\"a.b\":1,\"a.c\":null,\"a.d[0]\":false,\"a.d[1]\":true,\"e\":\"f\",\"g\":2.3}",
+        JsonFlattener.flattenAsMap(new MinimalJsonValue(jsonVal)).toString());
+
+    assertEquals("{\"[0].a\":1,\"[1]\":2,\"[2].c[0]\":3,\"[2].c[1]\":4}",
+        JsonFlattener.flattenAsMap("[{\"a\":1},2,{\"c\":[3,4]}]").toString());
+  }
+
+  @Test
   public void testFlattenWithKeyContainsDotAndSquareBracket()
       throws IOException {
     assertEquals(
@@ -92,6 +122,7 @@ public class JsonFlattenerTest {
     assertNotEquals(flattener.hashCode(), new JsonFlattener(json2).hashCode());
   }
 
+  @SuppressWarnings("unlikely-arg-type")
   @Test
   public void testEquals() throws IOException {
     URL url1 = Resources.getResource("test.json");
@@ -202,11 +233,44 @@ public class JsonFlattenerTest {
             .flatten());
   }
 
+  @SuppressWarnings("deprecation")
   @Test
-  public void testWithStringEscapePolicy() {
+  public void testWithStringEscapePolicyALL_UNICODES() {
     String json = "{\"abc\":{\"def\":\"太極\"}}";
     assertEquals("{\"abc.def\":\"\\u592A\\u6975\"}", new JsonFlattener(json)
         .withStringEscapePolicy(StringEscapePolicy.ALL_UNICODES).flatten());
+  }
+
+  @Test
+  public void testWithStringEscapePolicyALL() {
+    String json = "{\"abc\":{\"def\":\"太極/兩儀\"}}";
+    assertEquals("{\"abc.def\":\"\\u592A\\u6975\\/\\u5169\\u5100\"}",
+        new JsonFlattener(json).withStringEscapePolicy(StringEscapePolicy.ALL)
+            .flatten());
+  }
+
+  @Test
+  public void testWithStringEscapePolicyALL_BUT_SLASH() {
+    String json = "{\"abc\":{\"def\":\"太極/兩儀\"}}";
+    assertEquals("{\"abc.def\":\"\\u592A\\u6975/\\u5169\\u5100\"}",
+        new JsonFlattener(json)
+            .withStringEscapePolicy(StringEscapePolicy.ALL_BUT_SLASH)
+            .flatten());
+  }
+
+  @Test
+  public void testWithStringEscapePolicyALL_BUT_UNICODE() {
+    String json = "{\"abc\":{\"def\":\"太極/兩儀\"}}";
+    assertEquals("{\"abc.def\":\"太極\\/兩儀\"}", new JsonFlattener(json)
+        .withStringEscapePolicy(StringEscapePolicy.ALL_BUT_UNICODE).flatten());
+  }
+
+  @Test
+  public void testWithStringEscapePolicyALL_BUT_SLASH_AND_UNICODE() {
+    String json = "{\"abc\":{\"def\":\"太極/兩儀\"}}";
+    assertEquals("{\"abc.def\":\"太極/兩儀\"}", new JsonFlattener(json)
+        .withStringEscapePolicy(StringEscapePolicy.ALL_BUT_SLASH_AND_UNICODE)
+        .flatten());
   }
 
   @Test
@@ -479,6 +543,23 @@ public class JsonFlattenerTest {
 
             });
     assertEquals("{\"abc.de_f\":123}", jf.flatten());
+  }
+
+  @Test
+  public void testWithFlattenModeKeepBottomArrays() throws IOException {
+    URL url = Resources.getResource("test_keep_primitive_arrays.json");
+    String json = Resources.toString(url, Charsets.UTF_8);
+
+    URL urlKBA =
+        Resources.getResource("test_keep_primitive_arrays_flattened.json");
+    String expectedJson = Resources.toString(urlKBA, Charsets.UTF_8);
+
+    JsonFlattener jf = new JsonFlattener(json)
+        .withFlattenMode(FlattenMode.KEEP_PRIMITIVE_ARRAYS)
+        .withPrintMode(PrintMode.PRETTY);
+    String flattened = jf.flatten();
+
+    assertEquals(expectedJson, flattened);
   }
 
 }
